@@ -1,0 +1,10 @@
+{
+  "name": "PrecisionCast: Hyper-Local ML Weather Predictor",
+  "description": "Coordinate-level weather prediction platform featuring physics-informed ML bias correction, multi-model ensemble downscaling (ECMWF, GFS, ICON, HRRR), elevation & microclimate adjustments, radar nowcasting, and Gemini atmospheric reasoning.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
