@@ -148,6 +148,79 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     tileLayerRef.current = newTileLayer;
   };
 
+  // NOAA NWS Live Warning Polygons Layer
+  const alertsLayerGroupRef = useRef<L.LayerGroup | null>(null);
+  const [showAlertsLayer, setShowAlertsLayer] = useState<boolean>(true);
+  const [activeAlertCount, setActiveAlertCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    if (!alertsLayerGroupRef.current) {
+      alertsLayerGroupRef.current = L.layerGroup().addTo(map);
+    }
+    const alertGroup = alertsLayerGroupRef.current;
+    alertGroup.clearLayers();
+
+    if (!showAlertsLayer) return;
+
+    // Fetch active alerts and polygons
+    const fetchAlerts = async () => {
+      try {
+        const res = await fetch(`/api/weather/alerts?lat=${coordinates.latitude}&lon=${coordinates.longitude}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const alerts = data.alerts || [];
+        const features = data.features || [];
+        setActiveAlertCount(alerts.length);
+
+        features.forEach((feature: any) => {
+          if (!feature.geometry) return;
+
+          const severity = (feature.properties?.severity || "").toLowerCase();
+          const color = severity === "extreme" || severity === "severe" ? "#ef4444" : severity === "moderate" ? "#f59e0b" : "#06b6d4";
+
+          try {
+            const geoJsonLayer = L.geoJSON(feature, {
+              style: {
+                color,
+                weight: 2.5,
+                opacity: 0.9,
+                fillColor: color,
+                fillOpacity: 0.22,
+                dashArray: severity === "extreme" ? "4, 6" : undefined,
+              },
+            });
+
+            const props = feature.properties || {};
+            const popupContent = `
+              <div style="font-family: sans-serif; padding: 6px; max-width: 280px; color: #f8fafc;">
+                <div style="font-size: 11px; font-weight: bold; color: ${color}; text-transform: uppercase;">
+                  ⚠️ NOAA ACTIVE WARNING
+                </div>
+                <div style="font-size: 14px; font-weight: bold; margin-top: 2px;">
+                  ${props.event || "Severe Weather Alert"}
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">
+                  ${props.headline || props.areaDesc || ""}
+                </div>
+              </div>
+            `;
+            geoJsonLayer.bindPopup(popupContent);
+            geoJsonLayer.addTo(alertGroup);
+          } catch {
+            // ignore invalid geometry
+          }
+        });
+      } catch (err) {
+        console.warn("Failed to render NWS alert polygons:", err);
+      }
+    };
+
+    fetchAlerts();
+  }, [coordinates.latitude, coordinates.longitude, showAlertsLayer]);
+
   return (
     <div className="space-y-6">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 lg:p-8 shadow-xl">
@@ -166,7 +239,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </div>
 
           {/* Layer Selector */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setShowAlertsLayer(!showAlertsLayer)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center gap-1.5 ${
+                showAlertsLayer
+                  ? activeAlertCount > 0
+                    ? "bg-rose-500/20 text-rose-300 border-rose-500/60 shadow-md shadow-rose-500/20 animate-pulse"
+                    : "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-md shadow-cyan-500/10"
+                  : "bg-slate-950 text-slate-400 border-slate-800 hover:bg-slate-800"
+              }`}
+              title="Toggle Live NOAA NWS Severe Weather Warning Polygons"
+            >
+              <span>⚠️ NOAA Warnings</span>
+              {activeAlertCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full bg-rose-500 text-slate-950 font-bold text-[10px]">
+                  {activeAlertCount}
+                </span>
+              )}
+            </button>
+
             <button
               onClick={() => handleLayerChange("topo")}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border flex items-center gap-1.5 ${

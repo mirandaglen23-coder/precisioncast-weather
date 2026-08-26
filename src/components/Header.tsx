@@ -17,6 +17,9 @@ import {
   X,
   Star,
   Bookmark,
+  Volume2,
+  VolumeX,
+  Share2,
 } from "lucide-react";
 import { WeatherCoordinates } from "../types";
 import {
@@ -44,6 +47,9 @@ interface HeaderProps {
   onRefresh: () => void;
   isGloballyOverridden?: boolean;
   onResetOverrides?: () => void;
+  isSoundscapePlaying?: boolean;
+  onToggleSoundscape?: () => void;
+  onOpenShareModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -63,6 +69,9 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   isGloballyOverridden = false,
   onResetOverrides,
+  isSoundscapePlaying = false,
+  onToggleSoundscape,
+  onOpenShareModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<WeatherCoordinates[]>([]);
@@ -340,22 +349,47 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
 
-            {/* Mobile Refresh & Unit */}
-            <div className="flex items-center gap-2 md:hidden">
+            {/* Mobile Refresh, Soundscape, Share & Unit */}
+            <div className="flex items-center gap-1.5 md:hidden">
+              {onToggleSoundscape && (
+                <button
+                  onClick={onToggleSoundscape}
+                  className={`p-1.5 rounded-lg border transition ${
+                    isSoundscapePlaying
+                      ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-300 shadow-sm shadow-cyan-500/20 animate-pulse"
+                      : "bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200"
+                  }`}
+                  title={isSoundscapePlaying ? "Ambient Soundscape Active (Click to mute)" : "Enable Ambient Soundscape"}
+                >
+                  {isSoundscapePlaying ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4" />}
+                </button>
+              )}
+
+              {onOpenShareModal && (
+                <button
+                  onClick={onOpenShareModal}
+                  className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-300 transition"
+                  title="Share Forecast Snapshot"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+              )}
+
               <button
                 id="btn-unit-toggle-mobile"
                 onClick={onToggleTempUnit}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-cyan-300 hover:bg-slate-700 transition"
+                className="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-cyan-300 hover:bg-slate-700 transition"
               >
-                °{tempUnit} ({tempUnit === "F" ? "Imperial" : "Metric"})
+                °{tempUnit}
               </button>
               <button
                 id="btn-refresh-mobile"
                 onClick={onRefresh}
                 disabled={isLoading}
                 className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition disabled:opacity-50"
+                title="Refresh predictions"
               >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
+                <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-cyan-400" : ""}`} />
               </button>
             </div>
           </div>
@@ -550,6 +584,41 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </span>
             </button>
+
+            {onToggleSoundscape && (
+              <button
+                onClick={onToggleSoundscape}
+                className={`px-3 py-1.5 text-xs font-medium rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
+                  isSoundscapePlaying
+                    ? "bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/50 text-cyan-300 shadow-cyan-500/20"
+                    : "bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700"
+                }`}
+                title={isSoundscapePlaying ? "Ambient Soundscape Active (Click to mute)" : "Enable Ambient Atmospheric Soundscape"}
+              >
+                {isSoundscapePlaying ? (
+                  <>
+                    <Volume2 className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                    <span className="text-cyan-300 font-semibold">Audio On</span>
+                  </>
+                ) : (
+                  <>
+                    <VolumeX className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Audio</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {onOpenShareModal && (
+              <button
+                onClick={onOpenShareModal}
+                className="px-3 py-1.5 text-xs font-medium rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-cyan-500/50 transition flex items-center gap-1.5 shadow-sm"
+                title="Generate HD Shareable Weather Card"
+              >
+                <Share2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Share</span>
+              </button>
+            )}
 
             <button
               id="btn-current-gps"

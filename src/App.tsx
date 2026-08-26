@@ -13,6 +13,9 @@ import { InteractiveMap } from "./components/InteractiveMap";
 import { GeminiAtmosphericAnalysisCard } from "./components/GeminiAtmosphericAnalysisCard";
 import { PipelineCodeExporter } from "./components/PipelineCodeExporter";
 import { WeatherChatWidget } from "./components/WeatherChatWidget";
+import { AtmosphericCanvas } from "./components/AtmosphericCanvas";
+import { ShareForecastModal } from "./components/ShareForecastModal";
+import { ambientAudio, SoundscapeType } from "./utils/ambientAudio";
 import { PrecisionForecastResponse, WeatherCoordinates } from "./types";
 import { MICROCLIMATE_PRESETS } from "./utils/weatherUtils";
 import {
@@ -86,12 +89,64 @@ export default function App() {
     "forecast" | "nowcast" | "models" | "physics_ml" | "map" | "pipeline_code"
   >("forecast");
 
+  // Atmospheric Soundscape & Share Modal State
+  const [isSoundscapePlaying, setIsSoundscapePlaying] = useState<boolean>(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
+
   // Global Sandbox Hyperparameter Override state
   const [hyperparameterOverride, setHyperparameterOverride] = useState<{
     customLapseRate?: number;
     customElevationDelta?: number;
     isOverridden: boolean;
   }>({ isOverridden: false });
+
+  // Handle Atmospheric Soundscape toggle & dynamic condition adaptation
+  const toggleSoundscape = () => {
+    if (isSoundscapePlaying) {
+      ambientAudio.stop();
+      setIsSoundscapePlaying(false);
+    } else {
+      if (forecast) {
+        const code = forecast.current.weatherCode;
+        const isRain = [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code);
+        const isThunder = [95, 96, 99].includes(code);
+        const isDaytime = forecast.current.weatherCode != null ? true : true;
+
+        let soundType: SoundscapeType = "clear";
+        if (isThunder) soundType = "thunder";
+        else if (isRain) soundType = "rain";
+        else if (forecast.current.windSpeedKmh > 24) soundType = "wind";
+        else if (forecast.current.cloudCoverPercent < 30) soundType = "night";
+
+        ambientAudio.play(soundType);
+      } else {
+        ambientAudio.play("clear");
+      }
+      setIsSoundscapePlaying(true);
+    }
+  };
+
+  // Sync soundscape when forecast changes
+  useEffect(() => {
+    if (isSoundscapePlaying && forecast) {
+      const code = forecast.current.weatherCode;
+      const isRain = [51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code);
+      const isThunder = [95, 96, 99].includes(code);
+
+      let soundType: SoundscapeType = "clear";
+      if (isThunder) soundType = "thunder";
+      else if (isRain) soundType = "rain";
+      else if (forecast.current.windSpeedKmh > 24) soundType = "wind";
+      ambientAudio.play(soundType);
+    }
+  }, [forecast?.current.weatherCode, isSoundscapePlaying]);
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      ambientAudio.stop();
+    };
+  }, []);
 
   // Reset override when coordinates change
   useEffect(() => {
@@ -304,7 +359,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-hidden">
+      {/* Background Dynamic Atmospheric Particles */}
+      <AtmosphericCanvas
+        weatherCode={effectiveForecast?.current?.weatherCode ?? 0}
+        isDay={effectiveForecast?.hourly?.isDay?.[0] ?? true}
+        precipitationMm={effectiveForecast?.current ? (effectiveForecast.hourly.rainMm?.[0] ?? 0) : 0}
+        windSpeedKmh={effectiveForecast?.current?.windSpeedKmh ?? 10}
+        enabled={true}
+      />
+
       {/* Top Application Header & Search Bar */}
       <Header
         currentCoords={coordinates}
@@ -323,10 +387,22 @@ export default function App() {
         onRefresh={() => fetchForecast(coordinates, false)}
         isGloballyOverridden={hyperparameterOverride.isOverridden}
         onResetOverrides={() => setHyperparameterOverride({ isOverridden: false })}
+        isSoundscapePlaying={isSoundscapePlaying}
+        onToggleSoundscape={toggleSoundscape}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
       />
 
+      {/* Share Forecast High-Res Social Card Modal */}
+      {isShareModalOpen && effectiveForecast && (
+        <ShareForecastModal
+          forecast={effectiveForecast}
+          tempUnit={tempUnit}
+          onClose={() => setIsShareModalOpen(false)}
+        />
+      )}
+
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 relative z-10">
         {/* Error Notification Alert */}
         {error && (
           <div className="p-4 rounded-2xl bg-rose-950/60 border border-rose-500/40 text-rose-200 text-sm flex items-center justify-between shadow-lg">

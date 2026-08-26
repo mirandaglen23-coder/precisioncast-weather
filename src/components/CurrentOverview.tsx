@@ -95,6 +95,25 @@ export const CurrentOverview: React.FC<CurrentOverviewProps> = ({
   // Fullscreen Inspection Modal state: "aqi" | "astronomy" | null
   const [activeModal, setActiveModal] = useState<"aqi" | "astronomy" | null>(null);
 
+  // Live NOAA Active Alerts
+  const [liveAlerts, setLiveAlerts] = useState<any[]>(forecast.severeAlerts || []);
+
+  useEffect(() => {
+    const fetchLiveAlerts = async () => {
+      try {
+        const res = await fetch(`/api/weather/alerts?lat=${coordinates.latitude}&lon=${coordinates.longitude}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.alerts && data.alerts.length > 0) {
+          setLiveAlerts(data.alerts);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchLiveAlerts();
+  }, [coordinates.latitude, coordinates.longitude]);
+
   // Live ticking clock (updates every 1 second)
   const [liveTime, setLiveTime] = useState<Date>(() => new Date());
 
@@ -406,9 +425,9 @@ export const CurrentOverview: React.FC<CurrentOverviewProps> = ({
   return (
     <div className="space-y-6">
       {/* Severe Weather Alerts Banner */}
-      {forecast.severeAlerts && forecast.severeAlerts.length > 0 && (
+      {liveAlerts && liveAlerts.length > 0 && (
         <div className="space-y-3">
-          {forecast.severeAlerts.map((alert) => {
+          {liveAlerts.map((alert) => {
             const isWarning = alert.severity === "warning" || alert.severity === "emergency";
             const isWatch = alert.severity === "watch";
             return (

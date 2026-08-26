@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="sunGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="cloudGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="boltGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+  <!-- Background with rounded squircles for iOS/Android icon mask -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="#38bdf8" stroke-opacity="0.2" stroke-width="8"/>
+  
+  <!-- Glowing Sun in background -->
+  <circle cx="340" cy="180" r="70" fill="url(#sunGlow)" filter="url(#glow)"/>
+  
+  <!-- Stylized High-Tech Meteorological Cloud -->
+  <path d="M160 360 C115 360 80 325 80 280 C80 240 110 205 150 200 C165 145 215 105 275 105 C345 105 400 155 410 220 C445 230 470 260 470 300 C470 345 435 380 390 380 L160 380 Z" fill="url(#cloudGlow)" filter="url(#glow)" opacity="0.95"/>
+  
+  <!-- ML Precision Bolt / Sensor Node -->
+  <path d="M260 250 L210 340 L270 340 L230 430 L320 320 L260 320 Z" fill="url(#boltGlow)" filter="url(#glow)"/>
+  
+  <!-- Ambient radar sweep circles -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#06b6d4" stroke-opacity="0.15" stroke-width="2" stroke-dasharray="8 12"/>
+</svg>
