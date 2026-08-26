@@ -329,28 +329,28 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           
           {/* Logo & Subtitle */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400/30 flex-shrink-0">
-                <Compass className="w-5 h-5 text-white animate-pulse" />
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 ring-1 ring-cyan-400/30 flex-shrink-0">
+                <Compass className="w-4 h-4 sm:w-5 sm:h-5 text-white animate-pulse" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <h1 className="text-base sm:text-lg font-bold tracking-tight text-white flex items-center gap-1.5">
                     PrecisionCast
-                    <span className="text-[10px] uppercase font-mono tracking-wider px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25">
+                    <span className="text-[9px] sm:text-[10px] uppercase font-mono tracking-wider px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/25 whitespace-nowrap">
                       ML Bias-Correction
                     </span>
                   </h1>
                 </div>
-                <p className="text-xs text-slate-400 font-normal">
-                  Coordinate-Level Downscaled Atmospheric Engine
+                <p className="text-[11px] sm:text-xs text-slate-400 font-normal truncate max-w-[190px] sm:max-w-none">
+                  Downscaled Atmospheric Engine
                 </p>
               </div>
             </div>
 
-            {/* Mobile Refresh, Soundscape, Share & Unit */}
-            <div className="flex items-center gap-1.5 md:hidden">
+            {/* Mobile Top Actions: Soundscape, Share, GPS, Unit & Refresh */}
+            <div className="flex items-center gap-1 md:hidden flex-shrink-0">
               {onToggleSoundscape && (
                 <button
                   onClick={onToggleSoundscape}
@@ -361,7 +361,7 @@ export const Header: React.FC<HeaderProps> = ({
                   }`}
                   title={isSoundscapePlaying ? "Ambient Soundscape Active (Click to mute)" : "Enable Ambient Soundscape"}
                 >
-                  {isSoundscapePlaying ? <Volume2 className="w-4 h-4 text-cyan-400" /> : <VolumeX className="w-4 h-4" />}
+                  {isSoundscapePlaying ? <Volume2 className="w-3.5 h-3.5 text-cyan-400" /> : <VolumeX className="w-3.5 h-3.5" />}
                 </button>
               )}
 
@@ -371,17 +371,28 @@ export const Header: React.FC<HeaderProps> = ({
                   className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-300 transition"
                   title="Share Forecast Snapshot"
                 >
-                  <Share2 className="w-4 h-4" />
+                  <Share2 className="w-3.5 h-3.5" />
                 </button>
               )}
+
+              <button
+                id="btn-current-gps-mobile"
+                onClick={handleGetGeolocation}
+                className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-cyan-300 transition"
+                title="Use your precise GPS coordinates"
+              >
+                <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+              </button>
 
               <button
                 id="btn-unit-toggle-mobile"
                 onClick={onToggleTempUnit}
                 className="px-2 py-1 text-xs font-semibold rounded-lg bg-slate-800 border border-slate-700 text-cyan-300 hover:bg-slate-700 transition"
+                title="Toggle °F / °C"
               >
                 °{tempUnit}
               </button>
+
               <button
                 id="btn-refresh-mobile"
                 onClick={onRefresh}
@@ -397,7 +408,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Search Bar & Direct Lat/Lon Input Form */}
           <div className="flex-1 max-w-xl relative" ref={searchContainerRef}>
             <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-              <Search className="w-4 h-4 absolute left-3.5 text-slate-400 pointer-events-none" />
+              <Search className="w-4 h-4 absolute left-3 text-slate-400 pointer-events-none" />
               <input
                 ref={searchInputRef}
                 id="input-location-search"
@@ -405,8 +416,8 @@ export const Header: React.FC<HeaderProps> = ({
                 value={searchQuery ?? ""}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.trim().length >= 2 && setShowDropdown(true)}
-                placeholder="Search address, town, state, or enter coordinates..."
-                className="w-full pl-10 pr-28 py-2 text-sm bg-slate-900/90 hover:bg-slate-900 border border-slate-700/80 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/50 rounded-xl text-slate-100 placeholder-slate-400 shadow-inner transition outline-none"
+                placeholder="Search address, city, or coordinates..."
+                className="w-full pl-9 pr-20 sm:pr-28 py-2 text-xs sm:text-sm bg-slate-900/90 hover:bg-slate-900 border border-slate-700/80 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/50 rounded-xl text-slate-100 placeholder-slate-400 shadow-inner transition outline-none"
               />
               <div className="absolute right-1.5 flex items-center gap-1">
                 {isSearching ? (
@@ -444,10 +455,10 @@ export const Header: React.FC<HeaderProps> = ({
                     setShowCoordModal(true);
                   }}
                   title="Open direct Lat/Lon coordinate editor"
-                  className="px-2 py-1 text-xs font-mono rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition flex items-center gap-1"
+                  className="p-1.5 sm:px-2 sm:py-1 text-xs font-mono rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition flex items-center gap-1"
                 >
-                  <MapPin className="w-3 h-3 text-cyan-400" />
-                  <span className="font-semibold">Lat/Lon</span>
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                  <span className="hidden sm:inline font-semibold">Lat/Lon</span>
                 </button>
               </div>
             </form>
