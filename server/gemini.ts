@@ -16,14 +16,17 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache per coordinate & unit
 let rateLimitedUntil = 0;
 
 function getApiKey(): string | null {
-  if (process.env.GEMINI_API_KEY) {
+  if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0) {
     return process.env.GEMINI_API_KEY.trim();
+  }
+  if (process.env.VITE_GEMINI_API_KEY && process.env.VITE_GEMINI_API_KEY.trim().length > 0) {
+    return process.env.VITE_GEMINI_API_KEY.trim();
   }
   try {
     const envPath = path.join(process.cwd(), ".env");
     if (fs.existsSync(envPath)) {
       dotenv.config({ path: envPath, override: true });
-      if (process.env.GEMINI_API_KEY) {
+      if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim().length > 0) {
         return process.env.GEMINI_API_KEY.trim();
       }
       const raw = fs.readFileSync(envPath, "utf-8");
