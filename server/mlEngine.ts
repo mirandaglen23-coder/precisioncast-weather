@@ -718,9 +718,17 @@ export function computeMLPhysicsCorrection(
   let startIndex = 0;
   
   if (Array.isArray(historicalHourlyTimes)) {
-    const idx = historicalHourlyTimes.findIndex((t: string) => t && t.startsWith(currentIsoHour.slice(0, 13)));
-    if (idx >= 0) {
-      startIndex = idx;
+    const currentPrefix = (rawPhysicsData?.current?.time || "").slice(0, 13);
+    const lastIdx = (historicalHourlyTimes as any).findLastIndex
+      ? (historicalHourlyTimes as any).findLastIndex((t: string) => t && t.startsWith(currentPrefix))
+      : historicalHourlyTimes.lastIndexOf(historicalHourlyTimes.find((t: string) => t && t.startsWith(currentPrefix)) || "");
+    if (lastIdx >= 0) {
+      startIndex = lastIdx;
+    } else {
+      const idx = historicalHourlyTimes.findIndex((t: string) => t && t.startsWith(currentPrefix));
+      if (idx >= 0) {
+        startIndex = idx;
+      }
     }
   }
 

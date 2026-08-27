@@ -617,14 +617,29 @@ async function fetchNOAAGroundTruthForecast(
     const cloud_cover: number[] = [];
     const is_day: number[] = [];
 
-    // Prepend 7 days of past physical ground truth leading up to current observation
-    const startTime = new Date(first.startTime || Date.now());
-    const pastStart = new Date(startTime.getTime() - 7 * 24 * 3600 * 1000);
-    pastStart.setMinutes(0, 0, 0);
+    const formatLocalIso = (d: Date): string => {
+      try {
+        return new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone || "America/Chicago",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).format(d).replace(", ", "T");
+      } catch {
+        return d.toISOString().slice(0, 16);
+      }
+    };
 
-    for (let p = 0; p < 168; p++) {
-      const d = new Date(pastStart.getTime() + p * 3600 * 1000);
-      times.push(d.toISOString().slice(0, 19));
+    const firstStartTime = new Date(first.startTime || Date.now());
+    const currentLocalIso = formatLocalIso(firstStartTime);
+
+    // Prepend 168 hours of past continuous physical ground truth
+    for (let p = 168; p >= 1; p--) {
+      const pastDate = new Date(firstStartTime.getTime() - p * 3600 * 1000);
+      times.push(formatLocalIso(pastDate));
       temp_2m.push(Number(currentTempC.toFixed(1)));
       rel_humidity.push(currentRh);
       dew_point.push(Number(currentDewC.toFixed(1)));
@@ -637,12 +652,13 @@ async function fetchNOAAGroundTruthForecast(
       direct_radiation.push(0);
       shortwave_radiation.push(0);
       cloud_cover.push(cloudCover);
-      is_day.push(d.getUTCHours() >= 11 && d.getUTCHours() <= 23 ? 1 : 0);
+      is_day.push(0);
     }
 
-    // Append all NOAA NWS future periods
+    // Append all NOAA NWS future periods starting with period 0
     for (const p of periods) {
-      times.push(p.startTime.slice(0, 19));
+      const pDate = new Date(p.startTime);
+      times.push(formatLocalIso(pDate));
       const tC = p.temperatureUnit === "F" ? (p.temperature - 32) * (5 / 9) : p.temperature;
       temp_2m.push(Number(tC.toFixed(1)));
       const rh = p.relativeHumidity?.value ?? currentRh;
@@ -671,7 +687,7 @@ async function fetchNOAAGroundTruthForecast(
       elevation: elevationMeters,
       timezone: timezone || "America/Chicago",
       current: {
-        time: first.startTime.slice(0, 19),
+        time: currentLocalIso,
         temperature_2m: Number(currentTempC.toFixed(1)),
         relative_humidity_2m: currentRh,
         apparent_temperature: Number(currentTempC.toFixed(1)),
