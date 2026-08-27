@@ -479,7 +479,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Autocomplete & Instant Coordinate Dropdown */}
             {showDropdown && (searchResults.length > 0 || detectedCoords) && (
-              <div className="absolute left-0 right-0 mt-1.5 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800/60 max-h-80 overflow-y-auto">
+              <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50 divide-y divide-slate-800/60 max-h-80 overflow-y-auto ring-1 ring-cyan-500/20">
                 {/* Instant Coordinate Match Highlight Card */}
                 {detectedCoords && (
                   <button
