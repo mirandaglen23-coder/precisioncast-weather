@@ -406,8 +406,8 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {/* Search Bar & Direct Lat/Lon Input Form */}
-          <div className="flex-1 max-w-xl relative" ref={searchContainerRef}>
-            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+          <div className="flex-1 max-w-xl relative flex items-center gap-1.5" ref={searchContainerRef}>
+            <form onSubmit={handleSearchSubmit} className="relative flex-1 flex items-center">
               <Search className="w-4 h-4 absolute left-3 text-slate-400 pointer-events-none" />
               <input
                 ref={searchInputRef}
@@ -416,52 +416,66 @@ export const Header: React.FC<HeaderProps> = ({
                 value={searchQuery ?? ""}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => searchQuery.trim().length >= 2 && setShowDropdown(true)}
-                placeholder="Search address, city, or coordinates..."
-                className="w-full pl-9 pr-20 sm:pr-28 py-2 text-xs sm:text-sm bg-slate-900/90 hover:bg-slate-900 border border-slate-700/80 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/50 rounded-xl text-slate-100 placeholder-slate-400 shadow-inner transition outline-none"
+                placeholder="Search city, address, or coords..."
+                className="w-full pl-9 pr-14 py-2 text-xs sm:text-sm bg-slate-900/90 hover:bg-slate-900 border border-slate-700/80 focus:border-cyan-500/80 focus:ring-1 focus:ring-cyan-500/50 rounded-xl text-slate-100 placeholder-slate-400 shadow-inner transition outline-none"
               />
-              <div className="absolute right-1.5 flex items-center gap-1">
-                {isSearching ? (
-                  <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin mr-1" />
-                ) : (
-                  searchQuery.trim().length > 0 && (
-                    <button
-                      type="submit"
-                      title="Run forecast for query"
-                      className="p-1 text-xs rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition font-bold"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  )
-                )}
-                <button
-                  type="button"
-                  id="btn-pin-favorite-location"
-                  onClick={togglePinCurrentLocation}
-                  title={isCurrentLocationPinned ? "Remove from Pinned Favorites" : "Pin Location to Favorites"}
-                  className={`p-1.5 rounded-lg border transition flex items-center justify-center ${
-                    isCurrentLocationPinned
-                      ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
-                      : "bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-300 border-slate-700"
-                  }`}
-                >
-                  <Star className={`w-3.5 h-3.5 ${isCurrentLocationPinned ? "fill-amber-400 text-amber-400" : ""}`} />
-                </button>
-                <button
-                  type="button"
-                  id="btn-open-coord-modal"
-                  onClick={() => {
-                    setCustomLat(currentCoords?.latitude != null ? currentCoords.latitude.toFixed(4) : "0.0000");
-                    setCustomLon(currentCoords?.longitude != null ? currentCoords.longitude.toFixed(4) : "0.0000");
-                    setShowCoordModal(true);
-                  }}
-                  title="Open direct Lat/Lon coordinate editor"
-                  className="p-1.5 sm:px-2 sm:py-1 text-xs font-mono rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-cyan-300 border border-slate-700 transition flex items-center gap-1"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
-                  <span className="hidden sm:inline font-semibold">Lat/Lon</span>
-                </button>
-              </div>
+              {searchQuery.trim().length > 0 && (
+                <div className="absolute right-1.5 flex items-center gap-1">
+                  {isSearching ? (
+                    <RefreshCw className="w-3.5 h-3.5 text-cyan-400 animate-spin mr-1" />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery("")}
+                        className="p-1 text-slate-400 hover:text-white rounded-md transition"
+                        title="Clear search"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="submit"
+                        title="Run forecast for query"
+                        className="p-1 text-xs rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition font-bold"
+                      >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
             </form>
+
+            {/* Quick Action Companion Buttons: Pin Favorite & Lat/Lon Modal */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                type="button"
+                id="btn-pin-favorite-location"
+                onClick={togglePinCurrentLocation}
+                title={isCurrentLocationPinned ? "Remove from Pinned Favorites" : "Pin Location to Favorites"}
+                className={`p-2 rounded-xl border transition flex items-center justify-center ${
+                  isCurrentLocationPinned
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                    : "bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-300 border-slate-700/80"
+                }`}
+              >
+                <Star className={`w-3.5 h-3.5 ${isCurrentLocationPinned ? "fill-amber-400 text-amber-400" : ""}`} />
+              </button>
+              <button
+                type="button"
+                id="btn-open-coord-modal"
+                onClick={() => {
+                  setCustomLat(currentCoords?.latitude != null ? currentCoords.latitude.toFixed(4) : "0.0000");
+                  setCustomLon(currentCoords?.longitude != null ? currentCoords.longitude.toFixed(4) : "0.0000");
+                  setShowCoordModal(true);
+                }}
+                title="Open direct Lat/Lon coordinate editor"
+                className="p-2 sm:px-2.5 sm:py-2 text-xs font-mono rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-cyan-300 border border-slate-700/80 transition flex items-center gap-1.5 flex-shrink-0"
+              >
+                <MapPin className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                <span className="hidden sm:inline font-semibold">Lat/Lon</span>
+              </button>
+            </div>
 
             {/* Autocomplete & Instant Coordinate Dropdown */}
             {showDropdown && (searchResults.length > 0 || detectedCoords) && (
