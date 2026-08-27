@@ -95,24 +95,38 @@ export const CurrentOverview: React.FC<CurrentOverviewProps> = ({
   // Fullscreen Inspection Modal state: "aqi" | "astronomy" | null
   const [activeModal, setActiveModal] = useState<"aqi" | "astronomy" | null>(null);
 
-  // Live NOAA Active Alerts
-  const [liveAlerts, setLiveAlerts] = useState<any[]>(forecast.severeAlerts || []);
+  // Live NOAA Active Alerts for current location
+  const [liveAlerts, setLiveAlerts] = useState<any[]>([]);
 
   useEffect(() => {
+    let isMounted = true;
+    // Clear out stale alerts immediately when coordinates change
+    setLiveAlerts(forecast.severeAlerts || []);
+
     const fetchLiveAlerts = async () => {
       try {
         const res = await fetch(`/api/weather/alerts?lat=${coordinates.latitude}&lon=${coordinates.longitude}`);
-        if (!res.ok) return;
+        if (!res.ok || !isMounted) return;
         const data = await res.json();
-        if (data.alerts && data.alerts.length > 0) {
-          setLiveAlerts(data.alerts);
+        if (isMounted) {
+          // If NOAA returned active alerts for this point, use them; otherwise, clear them
+          if (data.alerts && data.alerts.length > 0) {
+            setLiveAlerts(data.alerts);
+          } else {
+            setLiveAlerts(forecast.severeAlerts || []);
+          }
         }
       } catch {
-        // ignore
+        if (isMounted) {
+          setLiveAlerts(forecast.severeAlerts || []);
+        }
       }
     };
     fetchLiveAlerts();
-  }, [coordinates.latitude, coordinates.longitude]);
+    return () => {
+      isMounted = false;
+    };
+  }, [coordinates.latitude, coordinates.longitude, forecast.severeAlerts]);
 
   // Live ticking clock (updates every 1 second)
   const [liveTime, setLiveTime] = useState<Date>(() => new Date());
