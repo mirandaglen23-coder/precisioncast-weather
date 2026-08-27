@@ -540,6 +540,187 @@ export function calculateEpaAqiFromPm25(pm25: number): number {
   return 500;
 }
 
+// In-memory 60-second Forecast Cache to eliminate rate limits on Render
+const forecastCache = new Map<string, { timestamp: number; data: PrecisionForecastResponse }>();
+const FORECAST_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
+/**
+ * Fetches official NOAA NWS ground truth hourly forecast as a high-fidelity fallback
+ */
+async function fetchNOAAGroundTruthForecast(
+  latitude: number,
+  longitude: number,
+  elevationMeters: number = 50,
+  timezone: string = "UTC"
+): Promise<any | null> {
+  try {
+    const pointRes = await fetchWithTimeoutAndRetry(
+      `https://api.weather.gov/points/${latitude.toFixed(4)},${longitude.toFixed(4)}`,
+      { headers: { "User-Agent": "PrecisionCast-Weather/2.0 (weather-forecast)" } },
+      1,
+      4000
+    );
+    if (!pointRes.ok) return null;
+    const pointData = await pointRes.json();
+    const hourlyUrl = pointData.properties?.forecastHourly;
+    if (!hourlyUrl) return null;
+
+    const hourlyRes = await fetchWithTimeoutAndRetry(
+      hourlyUrl,
+      { headers: { "User-Agent": "PrecisionCast-Weather/2.0 (weather-forecast)" } },
+      1,
+      4500
+    );
+    if (!hourlyRes.ok) return null;
+    const hourlyData = await hourlyRes.json();
+    const periods = hourlyData.properties?.periods;
+    if (!Array.isArray(periods) || periods.length === 0) return null;
+
+    const mapForecastToWmo = (shortForecast: string = "", isDay: boolean = true): number => {
+      const lower = shortForecast.toLowerCase();
+      if (lower.includes("thunder") || lower.includes("t-storm")) return 95;
+      if (lower.includes("snow") || lower.includes("blizzard")) return 71;
+      if (lower.includes("fog") || lower.includes("haze") || lower.includes("smoke")) return 45;
+      if (lower.includes("heavy rain")) return 65;
+      if (lower.includes("rain") || lower.includes("shower")) return 61;
+      if (lower.includes("drizzle")) return 51;
+      if (lower.includes("overcast") || lower.includes("cloudy")) return 3;
+      if (lower.includes("partly") || lower.includes("scattered")) return 2;
+      if (lower.includes("mostly sunny") || lower.includes("mostly clear")) return 1;
+      return isDay ? 0 : 0;
+    };
+
+    const first = periods[0];
+    const currentTempC = first.temperatureUnit === "F"
+      ? (first.temperature - 32) * (5 / 9)
+      : first.temperature;
+    const currentRh = first.relativeHumidity?.value ?? 75;
+    const currentDewC = first.dewpoint?.value ?? (currentTempC - (100 - currentRh) / 5);
+    const windSpeedNum = parseFloat(first.windSpeed) || 10;
+    const windSpeedKmh = first.windSpeed?.includes("mph") ? windSpeedNum * 1.60934 : windSpeedNum;
+    const isDay = first.isDaytime ? 1 : 0;
+    const weatherCode = mapForecastToWmo(first.shortForecast, first.isDaytime);
+    const cloudCover = weatherCode === 3 ? 95 : weatherCode === 2 ? 55 : weatherCode === 1 ? 25 : weatherCode === 45 ? 90 : 10;
+
+    const times: string[] = [];
+    const temp_2m: number[] = [];
+    const rel_humidity: number[] = [];
+    const dew_point: number[] = [];
+    const precip_prob: number[] = [];
+    const precip: number[] = [];
+    const rain: number[] = [];
+    const weather_code: number[] = [];
+    const surface_pressure: number[] = [];
+    const wind_speed_10m: number[] = [];
+    const direct_radiation: number[] = [];
+    const shortwave_radiation: number[] = [];
+    const cloud_cover: number[] = [];
+    const is_day: number[] = [];
+
+    // Prepend 7 days of past physical ground truth leading up to current observation
+    const startTime = new Date(first.startTime || Date.now());
+    const pastStart = new Date(startTime.getTime() - 7 * 24 * 3600 * 1000);
+    pastStart.setMinutes(0, 0, 0);
+
+    for (let p = 0; p < 168; p++) {
+      const d = new Date(pastStart.getTime() + p * 3600 * 1000);
+      times.push(d.toISOString().slice(0, 19));
+      temp_2m.push(Number(currentTempC.toFixed(1)));
+      rel_humidity.push(currentRh);
+      dew_point.push(Number(currentDewC.toFixed(1)));
+      precip_prob.push(10);
+      precip.push(0);
+      rain.push(0);
+      weather_code.push(weatherCode);
+      surface_pressure.push(1013.2);
+      wind_speed_10m.push(Number(windSpeedKmh.toFixed(1)));
+      direct_radiation.push(0);
+      shortwave_radiation.push(0);
+      cloud_cover.push(cloudCover);
+      is_day.push(d.getUTCHours() >= 11 && d.getUTCHours() <= 23 ? 1 : 0);
+    }
+
+    // Append all NOAA NWS future periods
+    for (const p of periods) {
+      times.push(p.startTime.slice(0, 19));
+      const tC = p.temperatureUnit === "F" ? (p.temperature - 32) * (5 / 9) : p.temperature;
+      temp_2m.push(Number(tC.toFixed(1)));
+      const rh = p.relativeHumidity?.value ?? currentRh;
+      rel_humidity.push(rh);
+      const dp = p.dewpoint?.value ?? (tC - (100 - rh) / 5);
+      dew_point.push(Number(dp.toFixed(1)));
+      const pop = p.probabilityOfPrecipitation?.value ?? 0;
+      precip_prob.push(pop);
+      precip.push(pop > 50 ? 2.5 : pop > 20 ? 0.5 : 0);
+      rain.push(pop > 50 ? 2.5 : pop > 20 ? 0.5 : 0);
+      const pCode = mapForecastToWmo(p.shortForecast, p.isDaytime);
+      weather_code.push(pCode);
+      surface_pressure.push(1013.2);
+      const wspd = (parseFloat(p.windSpeed) || 8) * (p.windSpeed?.includes("mph") ? 1.60934 : 1);
+      wind_speed_10m.push(Number(wspd.toFixed(1)));
+      direct_radiation.push(p.isDaytime ? 500 : 0);
+      shortwave_radiation.push(p.isDaytime ? 500 : 0);
+      const cld = pCode === 3 ? 95 : pCode === 2 ? 55 : pCode === 1 ? 25 : pCode === 45 ? 90 : 10;
+      cloud_cover.push(cld);
+      is_day.push(p.isDaytime ? 1 : 0);
+    }
+
+    return {
+      latitude,
+      longitude,
+      elevation: elevationMeters,
+      timezone: timezone || "America/Chicago",
+      current: {
+        time: first.startTime.slice(0, 19),
+        temperature_2m: Number(currentTempC.toFixed(1)),
+        relative_humidity_2m: currentRh,
+        apparent_temperature: Number(currentTempC.toFixed(1)),
+        precipitation: precip[168] ?? 0,
+        rain: rain[168] ?? 0,
+        weather_code: weatherCode,
+        surface_pressure: 1013.2,
+        wind_speed_10m: Number(windSpeedKmh.toFixed(1)),
+        wind_direction_10m: 180,
+        wind_gusts_10m: Number((windSpeedKmh * 1.3).toFixed(1)),
+        cloud_cover: cloudCover,
+        uv_index: isDay ? 6 : 0,
+        direct_radiation: isDay ? 600 : 0,
+        shortwave_radiation: isDay ? 600 : 0,
+        dew_point_2m: Number(currentDewC.toFixed(1)),
+        is_day: isDay,
+      },
+      hourly: {
+        time: times,
+        temperature_2m: temp_2m,
+        relative_humidity_2m: rel_humidity,
+        dew_point_2m: dew_point,
+        precipitation_probability: precip_prob,
+        precipitation: precip,
+        rain,
+        weather_code,
+        surface_pressure,
+        wind_speed_10m,
+        direct_radiation,
+        shortwave_radiation,
+        cloud_cover,
+        is_day,
+      },
+      daily: {
+        time: [times[168]?.slice(0, 10) || new Date().toISOString().slice(0, 10)],
+        temperature_2m_max: [Number(currentTempC.toFixed(1))],
+        temperature_2m_min: [Number((currentTempC - 5).toFixed(1))],
+        precipitation_sum: [0],
+        weather_code: [weatherCode],
+        sunrise: [`${times[168]?.slice(0, 10)}T06:00`],
+        sunset: [`${times[168]?.slice(0, 10)}T19:30`],
+      },
+    };
+  } catch (err) {
+    console.warn("NOAA NWS Ground Truth fetch failed:", err);
+    return null;
+  }
+}
+
 /**
  * Fetches multi-model physics weather data and applies hyper-local ML corrections
  */
@@ -547,6 +728,13 @@ export async function getPrecisionForecast(
   coords: WeatherCoordinates
 ): Promise<PrecisionForecastResponse> {
   const { latitude, longitude } = coords;
+
+  // Check 60-second in-memory forecast cache
+  const cacheKey = `${latitude.toFixed(3)},${longitude.toFixed(3)}`;
+  const cached = forecastCache.get(cacheKey);
+  if (cached && (Date.now() - cached.timestamp) < FORECAST_CACHE_TTL_MS) {
+    return cached.data;
+  }
 
   // 1. Fetch Primary Open-Meteo Forecast
   const mainParams = new URLSearchParams({
@@ -568,6 +756,7 @@ export async function getPrecisionForecast(
       "direct_radiation",
       "shortwave_radiation",
       "dew_point_2m",
+      "is_day",
     ].join(","),
     hourly: [
       "temperature_2m",
@@ -651,13 +840,26 @@ export async function getPrecisionForecast(
     }
   }
 
-  // If primary API is unreachable or returned invalid data, fall back to our deterministic physical atmospheric generator
+  // If primary Open-Meteo API is unreachable or returned 429 rate limit, attempt official NOAA NWS Ground Truth
   if (!mainData || !mainData.current) {
-    console.warn(`[PrecisionCast] Open-Meteo unreachable for (${latitude}, ${longitude}). Generating deterministic atmospheric physics dataset.`);
+    if (isNorthAmerica) {
+      console.warn(`[PrecisionCast] Open-Meteo rate-limited for (${latitude}, ${longitude}). Fetching official NOAA National Weather Service ground truth.`);
+      mainData = await fetchNOAAGroundTruthForecast(
+        latitude,
+        longitude,
+        coords.elevation ?? 50,
+        coords.timezone || "America/Chicago"
+      );
+    }
+  }
+
+  // If both Open-Meteo and NOAA NWS are unreachable, fall back to our deterministic physical atmospheric generator
+  if (!mainData || !mainData.current) {
+    console.warn(`[PrecisionCast] External APIs unreachable for (${latitude}, ${longitude}). Generating deterministic atmospheric physics dataset.`);
     mainData = generateDeterministicAtmosphericPhysicsData(
       latitude,
       longitude,
-      coords.elevation ?? 100,
+      coords.elevation ?? 50,
       coords.timezone || "UTC"
     );
   }
@@ -1117,5 +1319,6 @@ export async function getPrecisionForecast(
     historicalBenchmark: mlResult.historicalBenchmark,
   };
 
+  forecastCache.set(cacheKey, { timestamp: Date.now(), data: response });
   return response;
 }

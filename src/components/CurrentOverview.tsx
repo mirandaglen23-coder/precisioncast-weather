@@ -832,16 +832,22 @@ export const CurrentOverview: React.FC<CurrentOverviewProps> = ({
 
         <div className="flex items-center gap-3 overflow-x-auto pb-3 pt-2 no-scrollbar">
           {hourly.times.slice(0, 24).map((timeStr, idx) => {
-            const date = new Date(timeStr);
             let hourFormatted = "";
-            try {
-              hourFormatted = date.toLocaleTimeString("en-US", {
-                timeZone: coordinates.timezone || "UTC",
-                hour: "numeric",
-                hour12: true,
-              });
-            } catch {
-              hourFormatted = date.toLocaleTimeString([], { hour: "numeric", hour12: true });
+            if (timeStr && timeStr.includes("T")) {
+              const hourPart = parseInt(timeStr.split("T")[1].slice(0, 2), 10);
+              const hour12 = hourPart % 12 || 12;
+              const ampm = hourPart >= 12 ? "PM" : "AM";
+              hourFormatted = `${hour12} ${ampm}`;
+            } else {
+              try {
+                hourFormatted = new Date(timeStr).toLocaleTimeString("en-US", {
+                  timeZone: coordinates.timezone || "UTC",
+                  hour: "numeric",
+                  hour12: true,
+                });
+              } catch {
+                hourFormatted = "--";
+              }
             }
 
             const temp = hourly.mlCorrectedTemp[idx] ?? 20;
